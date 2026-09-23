@@ -1,139 +1,90 @@
-import javax.swing.*; // Кнопки, списки, панелі, вікно та Swing Timer.
-import java.awt.BorderLayout; // Керування зверху, симуляція в центрі.
-import java.awt.GridLayout; // Окремий рядок керування для кожного потоку.
-import java.awt.event.WindowAdapter; // Обробка закриття вікна.
-import java.awt.event.WindowEvent; // Тип події закриття.
-// class описує тип об’єктів; new створює конкретний об’єкт і викликає його конструктор. public робить клас
-// доступним ззовні; final у заголовку класу, якщо він є, забороняє створювати підкласи, але сам по собі не робить
-// поля незмінними.
-public class Main { // --console демонструє завдання 1, звичайний запуск відкриває GUI завдання 2.
-    // static означає, що метод належить класу: його можна викликати без створення об’єкта. public дозволяє виклик
-    // з інших класів, private обмежує використання цим класом; тип перед назвою задає результат, а void означає
-    // відсутність значення для повернення.
-    private static JPanel controls(String title, BaseAI ai) { // Будуємо незалежний набір керування одним потоком.
-        JPanel panel = new JPanel(); // Поточний рядок панелі керування.
-        JButton pause = new JButton("Пауза"); // Кнопка присипляє інтелект тільки вибраного виду.
-        JButton resume = new JButton("Продовжити"); // Кнопка пробуджує той самий потік.
-        JLabel state = new JLabel("Працює"); // Відображаємо запитаний користувачем стан.
-        // new тип[...] створює масив фіксованої довжини: додати елемент через append, як у Python list, не можна.
-        // Числові клітинки без явних значень спочатку дорівнюють 0, boolean — false, а посилання на об’єкти —
-        // null. Індекси починаються з 0; вихід за межі спричиняє виняток.
-        // JComboBox<Integer> показує список чисел-об’єктів Integer; <> дозволяє компілятору перевіряти типи. Масив
-        // у фігурних дужках одразу задає всі 10 варіантів пріоритету.
-        JComboBox<Integer> priority = new JComboBox<>(new Integer[]{1,2,3,4,5,6,7,8,9,10}); // Діапазон стандартних пріоритетів платформних Java-потоків.
-        priority.setSelectedItem(Thread.NORM_PRIORITY); // Початкове значення 5 відповідає типовому пріоритету.
-        // addActionListener реєструє дію на майбутнє натискання або вибір. event -> ... — лямбда, приблизно
-        // callback у Python: код виконається під час події, а не в момент реєстрації. Swing викликає такі
-        // обробники на своєму потоці EDT.
-        pause.addActionListener(event -> { ai.setPaused(true); state.setText("Пауза"); }); // setPaused узгоджується з поточним кроком через монітор.
-        resume.addActionListener(event -> { ai.setPaused(false); state.setText("Працює"); }); // notifyAll усередині методу дозволяє вийти з wait.
-        // getSelectedItem() повертає Object, тому (Integer) уточнює тип вибраного об’єкта. Під час передачі у
-        // setPriority Java автоматично дістає примітивний int з оболонки Integer; значення тут походять із
-        // заданого списку 1..10.
-        // Пріоритет 1..10 — побажання для планувальника ОС, а не гарантована частка процесора чи множник
-        // швидкості. Фізичну швидкість машин визначає speed(), тому підвищення пріоритету не означає пропорційно
-        // швидший рух.
-        priority.addActionListener(event -> ai.setPriority((Integer) priority.getSelectedItem())); // Пріоритет є підказкою ОС, а не гарантією частоти виконання.
-        panel.add(new JLabel(title)); // Назва виду машин і власника.
-        panel.add(pause); // Додаємо кнопку паузи.
-        panel.add(resume); // Додаємо кнопку відновлення.
-        panel.add(new JLabel("Пріоритет:")); // Пояснення спадного списку.
-        panel.add(priority); // Вибір пріоритету конкретного потоку.
-        panel.add(state); // Текст стану поруч із керуванням.
-        return panel; // Повертаємо готовий рядок.
+import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.GridLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+public class Main {
+    // static — виклик без об’єкта; public — доступ ззовні, private — лише в класі; void — без результату.
+    private static JPanel controls(String title, BaseAI ai) {
+        JPanel panel = new JPanel();
+        JButton pause = new JButton("Пауза");
+        JButton resume = new JButton("Продовжити");
+        JLabel state = new JLabel("Працює");
+        // new тип[n] — масив незмінної довжини; числові елементи спочатку 0, посилання — null.
+        JComboBox<Integer> priority = new JComboBox<>(new Integer[]{1,2,3,4,5,6,7,8,9,10});
+        priority.setSelectedItem(Thread.NORM_PRIORITY);
+        // event -> ... — лямбда-обробник; виконається при події на потоці Swing EDT.
+        pause.addActionListener(event -> { ai.setPaused(true); state.setText("Пауза"); });
+        resume.addActionListener(event -> { ai.setPaused(false); state.setText("Працює"); });
+        // (Integer) уточнює тип Object; перед викликом setPriority оболонка автоматично стає int.
+        priority.addActionListener(event -> ai.setPriority((Integer) priority.getSelectedItem()));
+        panel.add(new JLabel(title));
+        panel.add(pause);
+        panel.add(resume);
+        panel.add(new JLabel("Пріоритет:"));
+        panel.add(priority);
+        panel.add(state);
+        return panel;
     }
-    // public дозволяє Java знайти точку входу; static означає виклик без new Main(); void означає, що метод не
-    // повертає значення. String[] args — масив аргументів запуску без назви програми (на відміну від Python
-    // sys.argv). Тут починається виконання, приблизно як у блоці if __name__ == "__main__" у Python.
-    // throws у заголовку попереджає викликача про перевірюваний виняток: Java вимагає його перехопити або теж
-    // оголосити throws. Це не команда кинути помилку — її кидає throw усередині; у Python такої обов’язкової
-    // декларації немає.
-    public static void main(String[] args) throws InterruptedException { // Консольний сценарій може бути перерваний під час sleep або join.
-        Factory factory = new Factory("Завод «Промінь»", "Чернівці", 120); // Реальний підклас із лабораторної 3 тепер володіє вантажним автопарком.
-        InsuranceCompany insurer = new InsuranceCompany("СК «Оберіг»", "Чернівці", 500); // Другий похідний клас володіє легковими машинами.
-        TruckAI trucks = new TruckAI(factory); // Створюємо перший, ще не запущений потік.
-        CarAI cars = new CarAI(insurer); // Створюємо другий незалежний потік.
-        // .length — незмінне поле масиву, тому пишеться без дужок, аналог len(a). Останній індекс — length - 1. Не
-        // плутати: для String потрібен метод length(), а для ArrayList — size().
-        // equals(...) порівнює вміст за правилом відповідного класу. Для рядків не слід писати ==, бо в Java він
-        // порівнює посилання; Python == для рядків уже порівнює текст. Для власних об’єктів правило equals
-        // визначено в їхньому класі.
-        if (args.length == 1 && args[0].equals("--console")) { // Окремий запуск двох потоків для завдання 1.
-            factory.Show(); // Демонструємо збережений метод ієрархії організацій.
-            insurer.Show(); // Друкуємо другого власника.
-            // Thread.start() запускає окремий потік, у якому JVM викличе run(). Звичайний виклик run() виконав би
-            // код у поточному потоці без паралельного запуску. Той самий об’єкт Thread можна запустити лише один
-            // раз.
-            trucks.start(); // Створюємо потік виконання вантажівок.
-            cars.start(); // Створюємо потік виконання легкових машин.
-            try { // finally гарантує зупинку обох потоків навіть при перериванні main.
-                // У for спочатку один раз задається лічильник, перед кожним проходом перевіряється умова, а після
-                // проходу виконується i++ або j++. Умова i < n відповідає Python range(n): значення n вже не
-                // входить у цикл.
-                for (int second = 0; second < 6; second++) { // Демонстрація триває шість секунд.
-                    System.out.println("Вантажні: " + trucks.snapshots().get(0)); // Читаємо знімок першої вантажівки.
-                    System.out.println("Легкові: " + cars.snapshots().get(0)); // Читаємо знімок першої легкової машини.
-                    // sleep призупиняє ПОТОЧНИЙ потік на задану кількість мілісекунд і може кинути
-                    // InterruptedException. Інші потоки працюють далі; на відміну від wait, sleep не віддає вже
-                    // захоплених замків, тому в BaseAI він стоїть поза synchronized.
-                    Thread.sleep(1000); // Основний потік чекає секунду, робочі продовжують рух.
+    // main — точка входу; String[] args містить аргументи запуску без назви програми.
+    // throws оголошує перевірюваний виняток: викликач мусить перехопити його або теж оголосити.
+    public static void main(String[] args) throws InterruptedException {
+        Factory factory = new Factory("Завод «Промінь»", "Чернівці", 120);
+        InsuranceCompany insurer = new InsuranceCompany("СК «Оберіг»", "Чернівці", 500);
+        TruckAI trucks = new TruckAI(factory);
+        CarAI cars = new CarAI(insurer);
+        // .length — довжина масиву без дужок; для String — length(), для колекції — size().
+        // equals порівнює вміст; == для об’єктів Java перевіряє тотожність посилань.
+        if (args.length == 1 && args[0].equals("--console")) {
+            factory.Show();
+            insurer.Show();
+            // Thread.start запускає run в окремому потоці; прямий run() нового потоку не створює.
+            trucks.start();
+            cars.start();
+            try {
+                // for (початок; умова; крок); i++ збільшує лічильник після проходу.
+                for (int second = 0; second < 6; second++) {
+                    System.out.println("Вантажні: " + trucks.snapshots().get(0));
+                    System.out.println("Легкові: " + cars.snapshots().get(0));
+                    // Thread.sleep чекає в мілісекундах; може кинути InterruptedException, замків не звільняє.
+                    Thread.sleep(1000);
                 }
-            // finally виконується і після успіху, і при виході через виняток. Як у Python try/finally, тут це
-            // гарантує прибирання тимчасового файлу або запит на завершення робочих потоків.
-            } finally { // Коректно завершуємо обидва потоки.
-                trucks.shutdown(); // Просимо завершити перший інтелект.
-                cars.shutdown(); // Просимо завершити другий інтелект.
-                // join чекає завершення вибраного потоку, приблизно як threading.Thread.join() у Python. Виклик із
-                // числом обмежує очікування мілісекундами, тому після нього тест ще перевіряє isAlive(); без
-                // аргументу чекаємо до завершення.
-                trucks.join(); // Чекаємо фактичного завершення першого run.
-                cars.join(); // Чекаємо завершення другого run.
+            } finally {
+                trucks.shutdown();
+                cars.shutdown();
+                trucks.join();
+                cars.join();
             }
-            return; // GUI у консольному режимі не створюється.
+            return;
         }
-        // invokeLater ставить дію в чергу EDT — спеціального потоку, який обробляє події та малює Swing. () ->
-        // {...} — лямбда без параметрів. Створення й зміни віджетів тримаємо в цьому потоці; довге очікування в
-        // ньому зробило б вікно нечутливим.
-        SwingUtilities.invokeLater(() -> { // Основний потік інтерфейсу Swing - EDT; усі графічні дії виконує він.
-            JFrame frame = new JFrame("Лабораторна 7 • Варіант 5 • Автопарки організацій"); // Створюємо головне вікно.
-            SimulationPanel area = new SimulationPanel(trucks, cars); // Малювання отримує лише джерела незмінних знімків.
-            // GridLayout ділить місце на сітку однакових клітинок: перші два числа — рядки й стовпці, наступні,
-            // якщо задані, — проміжки. Додавання компонентів іде послідовно зліва направо й зверху вниз.
-            JPanel bar = new JPanel(new GridLayout(2, 1)); // Один рядок керування на кожний вид машин.
-            bar.add(controls("Вантажні • " + factory.getName(), trucks)); // Перший рядок керує TruckAI.
-            bar.add(controls("Легкові • " + insurer.getName(), cars)); // Другий рядок керує CarAI.
-            // BorderLayout розподіляє компоненти по областях: NORTH — зверху, SOUTH — знизу, CENTER — решта місця.
-            // Це менеджер розміщення: позиції перебудовуються при зміні розміру вікна.
-            frame.add(bar, BorderLayout.NORTH); // Кнопки розміщуємо над симуляцією.
-            frame.add(area, BorderLayout.CENTER); // Область руху займає решту вікна.
-            // Це javax.swing.Timer: затримка задана в мілісекундах, 16 мс дає орієнтир близько 60 подій за
-            // секунду. Обробник працює на EDT, а не в окремому потоці Timer; точний інтервал не гарантований, тому
-            // рух рахуємо за фактичним часом.
-            // repaint() просить Swing намалювати новий кадр пізніше через чергу подій. Він не викликає
-            // paintComponent негайно; кілька запитів Swing може об’єднати, щоб не малювати зайві кадри.
-            Timer timer = new Timer(16, event -> area.repaint()); // Таймер EDT лише просить перемалювати, не рахує рух.
-            // DISPOSE_ON_CLOSE закриває й звільняє це вікно, але не завершує примусово всі потоки програми. Тому
-            // windowClosed окремо зупиняє таймер і, де є, робочі потоки.
-            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Закриття запускає власне очищення ресурсів.
-            // new WindowAdapter() {...} створює анонімний підклас прямо тут. Перевизначаємо лише потрібну подію
-            // windowClosed; решту методів уже реалізовано порожніми в адаптері.
-            frame.addWindowListener(new WindowAdapter() { // Слухач коректно завершує фонову роботу.
-                // @Override просить компілятор перевірити, що метод справді замінює успадкований метод або
-                // реалізує метод інтерфейсу. Якщо помилитися в назві чи параметрах, Java повідомить про це ще до
-                // запуску.
-                @Override public void windowClosed(WindowEvent event) { // Реагуємо після закриття вікна.
-                    timer.stop(); // Забираємо періодичні події малювання.
-                    trucks.shutdown(); // Пробуджуємо й завершуємо потік вантажівок.
-                    cars.shutdown(); // Пробуджуємо й завершуємо потік легкових.
+        // invokeLater ставить лямбду () -> {...} у чергу EDT — потоку роботи з інтерфейсом Swing.
+        SwingUtilities.invokeLater(() -> {
+            JFrame frame = new JFrame("Лабораторна 7 • Варіант 5 • Автопарки організацій");
+            SimulationPanel area = new SimulationPanel(trucks, cars);
+            JPanel bar = new JPanel(new GridLayout(2, 1));
+            bar.add(controls("Вантажні • " + factory.getName(), trucks));
+            bar.add(controls("Легкові • " + insurer.getName(), cars));
+            frame.add(bar, BorderLayout.NORTH);
+            frame.add(area, BorderLayout.CENTER);
+            // Swing Timer викликає обробник на EDT; затримка задається в мілісекундах.
+            Timer timer = new Timer(16, event -> area.repaint());
+            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            // new WindowAdapter() {...} — анонімний підклас із перевизначеним обробником.
+            frame.addWindowListener(new WindowAdapter() {
+                // @Override — компілятор перевіряє, що метод перевизначає успадкований або реалізує інтерфейс.
+                @Override public void windowClosed(WindowEvent event) {
+                    timer.stop();
+                    trucks.shutdown();
+                    cars.shutdown();
                 }
             });
-            frame.setSize(1000, 650); // Початковий розмір вміщує керування та симуляцію.
-            frame.setMinimumSize(new java.awt.Dimension(900, 500)); // Захищаємо кнопки від надмірного звуження вікна.
-            frame.setLocationRelativeTo(null); // Центруємо вікно.
-            frame.setVisible(true); // Показуємо готовий інтерфейс.
-            trucks.start(); // Запускаємо обчислення після підготовки GUI.
-            cars.start(); // Другий вид має окремий потік.
-            timer.start(); // Починаємо регулярне відображення знімків.
+            frame.setSize(1000, 650);
+            frame.setMinimumSize(new java.awt.Dimension(900, 500));
+            frame.setLocationRelativeTo(null);
+            frame.setVisible(true);
+            trucks.start();
+            cars.start();
+            timer.start();
         });
     }
 }

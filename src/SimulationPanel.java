@@ -1,73 +1,49 @@
-import javax.swing.JPanel; // Область малювання симуляції.
-import java.awt.Color; // Кольори машин і цільових областей.
-import java.awt.Graphics; // Початковий графічний контекст.
-import java.awt.Graphics2D; // Підтримує масштабування та згладжування.
-import java.awt.RenderingHints; // Параметри якості графіки.
-// class описує тип об’єктів; new створює конкретний об’єкт і викликає його конструктор. public робить клас
-// доступним ззовні; final у заголовку класу, якщо він є, забороняє створювати підкласи, але сам по собі не робить
-// поля незмінними.
-// extends задає єдиний батьківський клас. Виклик методу через змінну базового типу все одно обирає реалізацію
-// фактичного об’єкта — так працює поліморфізм, знайомий і з Python.
-public final class SimulationPanel extends JPanel { // Панель читає лише незмінні знімки робочих потоків.
-    // private забороняє прямий доступ до поля з інших класів. final дозволяє присвоїти поле лише один раз; для
-    // посилання це заборона замінити об’єкт, а не заборона змінювати його вміст, якщо сам об’єкт змінний.
-    private final BaseAI trucks; // Джерело знімків вантажівок.
-    private final BaseAI cars; // Джерело знімків легкових машин.
-    public SimulationPanel(BaseAI trucks, BaseAI cars) { // Зберігаємо джерела даних для малювання.
-        // this — поточний об’єкт, аналог self у Python, але його не пишуть у списку параметрів. Ліворуч this.ім’я
-        // — поле об’єкта, праворуч однойменне ім’я без this — переданий параметр; тому значення зберігається після
-        // завершення конструктора.
-        this.trucks = trucks; // Посилання на перший потік.
-        this.cars = cars; // Посилання на другий потік.
+import javax.swing.JPanel;
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+// extends — успадкування класу; final, якщо вказано, забороняє подальше успадкування.
+public final class SimulationPanel extends JPanel {
+    // private — поле закрите ззовні; final забороняє переприсвоєння, але не зміну вмісту об’єкта.
+    private final BaseAI trucks;
+    private final BaseAI cars;
+    public SimulationPanel(BaseAI trucks, BaseAI cars) {
+        // this — поточний об’єкт; this.поле відрізняє поле від однойменного параметра.
+        this.trucks = trucks;
+        this.cars = cars;
     }
-    // @Override просить компілятор перевірити, що метод справді замінює успадкований метод або реалізує метод
-    // інтерфейсу. Якщо помилитися в назві чи параметрах, Java повідомить про це ще до запуску.
-    @Override protected void paintComponent(Graphics graphics) { // Swing малює тільки на головному потоці інтерфейсу EDT.
-        // Спочатку викликаємо малювання батьківського JPanel, зокрема очищення тла. Без цього попередні положення
-        // фігур могли б залишати сліди на наступних кадрах.
-        super.paintComponent(graphics); // Стираємо попередній кадр.
-        // create() робить копію графічного контексту; (Graphics2D) уточнює його фактичний тип для методів
-        // масштабування й налаштувань. Зміна кольору чи масштабу цієї копії не вплине на малювання інших
-        // компонентів.
-        Graphics2D g = (Graphics2D) graphics.create(); // Налаштування застосовуються тільки до локальної копії.
-        // (double) переводить операнд у дробовий тип ДО операції. Це важливо: int / int у Java відкидає дробову
-        // частину, а int - int може переповнитися до подальшого перетворення; дробовий операнд змінює тип самої
-        // арифметики.
-        // Кожну логічну координату множимо на співвідношення розмірів панелі й області моделі. Так зміна розміру
-        // вікна змінює лише малюнок, а траєкторії й цілі машин лишаються тими самими.
-        g.scale(getWidth() / (double) Vehicle.WIDTH, getHeight() / (double) Vehicle.HEIGHT); // Відображаємо сталі логічні координати в будь-який розмір панелі.
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); // Згладжування ліній і фігур.
-        g.setColor(new Color(228, 239, 255)); // Світло-синя цільова чверть вантажівок.
-        g.fillRect(0, 0, Vehicle.WIDTH / 2, Vehicle.HEIGHT / 2); // Верхня ліва чверть.
-        g.setColor(new Color(232, 247, 230)); // Світло-зелена цільова чверть легкових.
-        g.fillRect(Vehicle.WIDTH / 2, Vehicle.HEIGHT / 2, Vehicle.WIDTH / 2, Vehicle.HEIGHT / 2); // Нижня права чверть.
-        draw(g, trucks, new Color(25, 80, 180), true); // Малюємо вантажівки прямокутниками.
-        draw(g, cars, new Color(30, 140, 60), false); // Малюємо легкові овальними фігурами.
-        g.setColor(Color.DARK_GRAY); // Нейтральний колір підписів.
-        g.drawString("Вантажні: верхня ліва чверть", 12, 20); // Підпис області вантажівок.
-        g.drawString("Легкові: нижня права чверть", Vehicle.WIDTH / 2 + 12, Vehicle.HEIGHT - 14); // Підпис області легкових.
-        // Звільняємо тільки копію контексту, створену через create(). Початковий graphics належить Swing, тому
-        // його тут не закриваємо.
-        g.dispose(); // Звільняємо локальний графічний контекст.
+    // @Override — компілятор перевіряє, що метод перевизначає успадкований або реалізує інтерфейс.
+    @Override protected void paintComponent(Graphics graphics) {
+        super.paintComponent(graphics);
+        // (Graphics2D) уточнює тип копії графічного контексту; копію потім звільняє dispose().
+        Graphics2D g = (Graphics2D) graphics.create();
+        // (double) переводить операнд у дробовий тип до арифметики; int / int у Java дає ціле.
+        g.scale(getWidth() / (double) Vehicle.WIDTH, getHeight() / (double) Vehicle.HEIGHT);
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setColor(new Color(228, 239, 255));
+        g.fillRect(0, 0, Vehicle.WIDTH / 2, Vehicle.HEIGHT / 2);
+        g.setColor(new Color(232, 247, 230));
+        g.fillRect(Vehicle.WIDTH / 2, Vehicle.HEIGHT / 2, Vehicle.WIDTH / 2, Vehicle.HEIGHT / 2);
+        draw(g, trucks, new Color(25, 80, 180), true);
+        draw(g, cars, new Color(30, 140, 60), false);
+        g.setColor(Color.DARK_GRAY);
+        g.drawString("Вантажні: верхня ліва чверть", 12, 20);
+        g.drawString("Легкові: нижня права чверть", Vehicle.WIDTH / 2 + 12, Vehicle.HEIGHT - 14);
+        g.dispose();
     }
-    private void draw(Graphics2D g, BaseAI ai, Color color, boolean truck) { // Малювання одного виду машин з останнього узгодженого знімка.
-        // Це for-each: двокрапка означає «взяти по черзі кожен елемент», як for item in items у Python. Ліворуч
-        // указано тип елемента; сам індекс тут не потрібен, а для об’єктів змінна отримує посилання, не копію.
-        for (Position p : ai.snapshots()) { // Список та його елементи незмінні, тому блокування не потрібне.
-            // (int) — явне перетворення на 32-бітне ціле: дробова частина відкидається до нуля, наприклад 3.9 → 3
-            // і -3.9 → -3. Це не округлення до найближчого. Як int(x) для звичайних скінченних Python float, але
-            // Java int має межі, тоді як Python int може зростати.
-            int x = (int) p.x(); // Перетворюємо координату для піксельного малювання.
-            int y = (int) p.y(); // Перетворюємо вертикальну координату.
-            g.setColor(Color.LIGHT_GRAY); // Лінія до цілі допомагає перевірити прямолінійність руху.
-            g.drawLine(x, y, (int) p.targetX(), (int) p.targetY()); // Візуалізуємо залишок шляху.
-            g.setColor(color); // Встановлюємо колір поточного виду машин.
-            if (truck) g.fillRect(x - 7, y - 4, 14, 8); // Вантажна машина у вигляді прямокутника.
-            // fillOval приймає лівий верхній кут обмежувального прямокутника та його ширину/висоту. Віднімання
-            // половини розміру від координати центра потрібне, щоб фігура була центрована на точці, а не
-            // починалася в ній.
-            else g.fillOval(x - 6, y - 4, 12, 8); // Легкова машина у вигляді овалу.
-            g.drawString(Integer.toString(p.id()), x + 8, y); // Підписуємо номер для спостереження за конкретною машиною.
+    private void draw(Graphics2D g, BaseAI ai, Color color, boolean truck) {
+        // for (Тип елемент : колекція) — перебір елементів без індексу.
+        for (Position p : ai.snapshots()) {
+            // (int) відкидає дробову частину до нуля; int обмежений 32 бітами.
+            int x = (int) p.x();
+            int y = (int) p.y();
+            g.setColor(Color.LIGHT_GRAY);
+            g.drawLine(x, y, (int) p.targetX(), (int) p.targetY());
+            g.setColor(color);
+            if (truck) g.fillRect(x - 7, y - 4, 14, 8);
+            else g.fillOval(x - 6, y - 4, 12, 8);
+            g.drawString(Integer.toString(p.id()), x + 8, y);
         }
     }
 }
