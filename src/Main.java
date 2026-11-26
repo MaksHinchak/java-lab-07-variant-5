@@ -84,7 +84,8 @@ public class Main {
      *      Малювання виконувати на потоці подій Swing (EDT).
      * 2.4. Додати окремі кнопки паузи й відновлення кожного автопарку,
      *      використовуючи засипання та пробудження потоків.
-     * 2.5. Додати окремий випадаючий список пріоритетів для кожного потоку.
+     * 2.5. Додати для кожного потоку список із трьома пріоритетами Java
+     *      (MIN_PRIORITY, NORM_PRIORITY, MAX_PRIORITY).
      */
     private static void runTask2(Factory factory, InsuranceCompany insurer, TruckAI trucks, CarAI cars) {
         SwingUtilities.invokeLater(() -> {
@@ -121,8 +122,8 @@ abstract class BaseAI extends Thread {
     private final Object gate = new Object();
     private final ArrayList<Vehicle> vehicles = new ArrayList<>();
 
-    // Поле volatile публікує готовий незмінний список для Swing.
-    private volatile List<Position> positions = List.of();
+    // Потік публікує незмінний список для Swing під монітором gate.
+    private List<Position> positions = List.of();
     private volatile boolean running = true;
     private boolean paused = false;
 
@@ -138,7 +139,11 @@ abstract class BaseAI extends Thread {
     private void publish() {
         positions = vehicles.stream().map(Vehicle::snapshot).toList();
     }
-    public List<Position> snapshots() { return positions; }
+    public List<Position> snapshots() {
+        synchronized (gate) {
+            return positions;
+        }
+    }
 
     // Зміна паузи узгоджена з кроком руху через спільний монітор.
     public void setPaused(boolean value) {
@@ -284,8 +289,10 @@ final class SimulationPanel extends JPanel {
         pause.addActionListener(event -> { ai.setPaused(true); state.setText("Пауза"); });
         resume.addActionListener(event -> { ai.setPaused(false); state.setText("Працює"); });
 
-        // Завдання 2.5. Незалежний вибір пріоритету від 1 до 10.
-        JComboBox<Integer> priority = new JComboBox<>(new Integer[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        // Завдання 2.5. Мінімальний, звичайний і максимальний пріоритети.
+        JComboBox<Integer> priority = new JComboBox<>(new Integer[]{
+            Thread.MIN_PRIORITY, Thread.NORM_PRIORITY, Thread.MAX_PRIORITY
+        });
         priority.setSelectedItem(Thread.NORM_PRIORITY);
         priority.addActionListener(event -> ai.setPriority((Integer) priority.getSelectedItem()));
 
