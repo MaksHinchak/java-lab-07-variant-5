@@ -18,71 +18,84 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-// Лабораторна робота № 7. Варіант 5 — вантажні та легкові машини.
+// Лабораторна робота № 7. Потоки в Java. Варіант 5.
 public class Main {
-    // Завдання 2.4–2.5. Окремі елементи керування для кожного потоку.
-    private static JPanel controls(String title, BaseAI ai) {
-        JPanel panel = new JPanel();
-        JButton pause = new JButton("Пауза");
-        JButton resume = new JButton("Продовжити");
-        JLabel state = new JLabel("Працює");
-        JComboBox<Integer> priority = new JComboBox<>(new Integer[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
-        priority.setSelectedItem(Thread.NORM_PRIORITY);
-
-        // Пункт 2.4. Пауза й відновлення вибраного автопарку.
-        pause.addActionListener(event -> { ai.setPaused(true); state.setText("Пауза"); });
-        resume.addActionListener(event -> { ai.setPaused(false); state.setText("Працює"); });
-
-        // Пункт 2.5. Пріоритет потоку задається від 1 до 10.
-        priority.addActionListener(event -> ai.setPriority((Integer) priority.getSelectedItem()));
-
-        panel.add(new JLabel(title));
-        panel.add(pause);
-        panel.add(resume);
-        panel.add(new JLabel("Пріоритет:"));
-        panel.add(priority);
-        panel.add(state);
-        return panel;
-    }
-
     public static void main(String[] args) throws InterruptedException {
         Factory factory = new Factory("Завод «Промінь»", "Чернівці", 120);
         InsuranceCompany insurer = new InsuranceCompany("СК «Оберіг»", "Чернівці", 500);
         TruckAI trucks = new TruckAI(factory);
         CarAI cars = new CarAI(insurer);
 
-        // Завдання 1. Консольна демонстрація двох потоків.
         if (args.length == 1 && args[0].equals("--console")) {
-            factory.Show();
-            insurer.Show();
-            trucks.start();
-            cars.start();
-            try {
-                for (int second = 0; second < 6; second++) {
-                    System.out.println("Вантажні: " + trucks.snapshots().get(0));
-                    System.out.println("Легкові: " + cars.snapshots().get(0));
-                    Thread.sleep(1000);
-                }
-            } finally {
-                trucks.shutdown();
-                cars.shutdown();
-                trucks.join();
-                cars.join();
-            }
-            return;
+            runTask1(factory, insurer, trucks, cars);
+        } else {
+            runTask2(factory, insurer, trucks, cars);
         }
+    }
 
-        // Завдання 2. Графічна симуляція з незалежним керуванням автопарками.
+    /*
+     * Умова завдання 1. Створити два потоки за варіантом 5.
+     * 1.1. Вантажівки їдуть по прямій із постійною швидкістю V до випадкової точки
+     *      у верхній лівій чверті. Початок чверті — (0, 0), розмір — w/2 × h/2.
+     * 1.2. Легкові машини так само їдуть до випадкової точки в нижній правій чверті.
+     *      Початок чверті — (w/2, h/2), розмір — w/2 × h/2.
+     * w і h — ширина й висота області. Машина, створена у своїй чверті, стоїть
+     * на місці. Решта після прибуття до обраної точки більше не рухається.
+     */
+    private static void runTask1(Factory factory, InsuranceCompany insurer, TruckAI trucks, CarAI cars)
+            throws InterruptedException {
+        factory.Show();
+        insurer.Show();
+        int truckIndex = movingExampleIndex(trucks.snapshots());
+        int carIndex = movingExampleIndex(cars.snapshots());
+
+        trucks.start();
+        cars.start();
+        try {
+            for (int second = 0; second < 6; second++) {
+                System.out.println("Вантажні: " + trucks.snapshots().get(truckIndex));
+                System.out.println("Легкові: " + cars.snapshots().get(carIndex));
+                Thread.sleep(1000);
+            }
+        } finally {
+            trucks.shutdown();
+            cars.shutdown();
+            trucks.join();
+            cars.join();
+        }
+    }
+
+    private static int movingExampleIndex(List<Position> positions) {
+        for (int index = 0; index < positions.size(); index++) {
+            if (!positions.get(index).arrived()) {
+                return index;
+            }
+        }
+        return 0;
+    }
+
+    /*
+     * Умова завдання 2. Доопрацювати програму з лабораторної № 3.
+     * 2.1. Створити абстрактний клас BaseAI, який є окремим потоком
+     *      і керує колекцією об’єктів.
+     * 2.2. Створити підклас BaseAI для кожного виду машин і реалізувати рух
+     *      за умовою варіанта 5.
+     * 2.3. Передавати дані з потоків обчислення в потік інтерфейсу.
+     *      Малювання виконувати на потоці подій Swing (EDT).
+     * 2.4. Додати окремі кнопки паузи й відновлення кожного автопарку,
+     *      використовуючи засипання та пробудження потоків.
+     * 2.5. Додати окремий випадаючий список пріоритетів для кожного потоку.
+     */
+    private static void runTask2(Factory factory, InsuranceCompany insurer, TruckAI trucks, CarAI cars) {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("Лабораторна 7 • Варіант 5 • Автопарки організацій");
             SimulationPanel area = new SimulationPanel(trucks, cars);
             JPanel bar = new JPanel(new GridLayout(2, 1));
-            bar.add(controls("Вантажні • " + factory.getName(), trucks));
-            bar.add(controls("Легкові • " + insurer.getName(), cars));
+            bar.add(SimulationPanel.controls("Вантажні • " + factory.getName(), trucks));
+            bar.add(SimulationPanel.controls("Легкові • " + insurer.getName(), cars));
             frame.add(bar, BorderLayout.NORTH);
             frame.add(area, BorderLayout.CENTER);
 
-            // Пункт 2.3. Таймер просить Swing перемалювати знімки.
             Timer timer = new Timer(16, event -> area.repaint());
             frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
             frame.addWindowListener(new WindowAdapter() {
@@ -108,7 +121,7 @@ abstract class BaseAI extends Thread {
     private final Object gate = new Object();
     private final ArrayList<Vehicle> vehicles = new ArrayList<>();
 
-    // Пункт 2.3. volatile публікує готовий незмінний список для Swing.
+    // Поле volatile публікує готовий незмінний список для Swing.
     private volatile List<Position> positions = List.of();
     private volatile boolean running = true;
     private boolean paused = false;
@@ -122,13 +135,12 @@ abstract class BaseAI extends Thread {
 
     protected abstract double speed();
 
-    // Пункт 2.3. Робочий потік передає знімки стану машин.
     private void publish() {
         positions = vehicles.stream().map(Vehicle::snapshot).toList();
     }
     public List<Position> snapshots() { return positions; }
 
-    // Пункт 2.4. Зміна паузи узгоджена з кроком руху через спільний монітор.
+    // Зміна паузи узгоджена з кроком руху через спільний монітор.
     public void setPaused(boolean value) {
         synchronized (gate) {
             paused = value;
@@ -147,7 +159,7 @@ abstract class BaseAI extends Thread {
         try {
             while (running) {
                 synchronized (gate) {
-                    // Пункт 2.4. wait() відпускає монітор, а після пробудження умова перевіряється знову.
+                    // wait() відпускає монітор, а після пробудження умова перевіряється знову.
                     while (paused && running) {
                         gate.wait();
                         previous = System.nanoTime();
@@ -165,19 +177,20 @@ abstract class BaseAI extends Thread {
     }
 }
 
-// Завдання 1.1 і 2.2. Вантажівки рухаються до цілі у верхній лівій чверті.
+// Завдання 2.2. Реалізація поведінки вантажних і легкових машин за варіантом 5.
+// Вантажівки рухаються до цілі у верхній лівій чверті.
 final class TruckAI extends BaseAI {
     public TruckAI(Organization owner) { super("TruckAI", true, owner, 51); }
     @Override protected double speed() { return 90; }
 }
 
-// Завдання 1.2 і 2.2. Легкові машини рухаються до цілі в нижній правій чверті.
+// Легкові машини рухаються до цілі в нижній правій чверті.
 final class CarAI extends BaseAI {
     public CarAI(Organization owner) { super("CarAI", false, owner, 52); }
     @Override protected double speed() { return 110; }
 }
 
-// Завдання 1 і 2.2. Спільна логіка вибору цілі та руху машин.
+// Спільна логіка вибору цілі та руху машин.
 final class Vehicle {
     public static final int WIDTH = 760;
     public static final int HEIGHT = 440;
@@ -219,11 +232,10 @@ final class Vehicle {
     public Position snapshot() { return new Position(id, x, y, targetX, targetY, owner.getName(), x == targetX && y == targetY); }
 }
 
-// Завдання 2.3. Незмінний знімок стану однієї машини.
+// Завдання 2.3. Передавання незмінних знімків і малювання на потоці подій Swing (EDT).
 record Position(int id, double x, double y, double targetX, double targetY, String owner, boolean arrived) {
 }
 
-// Завдання 2.3. Swing малює готові знімки на потоці подій (EDT).
 final class SimulationPanel extends JPanel {
     private final BaseAI trucks;
     private final BaseAI cars;
@@ -262,9 +274,32 @@ final class SimulationPanel extends JPanel {
             g.drawString(Integer.toString(p.id()), x + 8, y);
         }
     }
+
+    // Завдання 2.4. Окремі кнопки паузи й відновлення для переданого потоку.
+    static JPanel controls(String title, BaseAI ai) {
+        JPanel panel = new JPanel();
+        JLabel state = new JLabel("Працює");
+        JButton pause = new JButton("Пауза");
+        JButton resume = new JButton("Продовжити");
+        pause.addActionListener(event -> { ai.setPaused(true); state.setText("Пауза"); });
+        resume.addActionListener(event -> { ai.setPaused(false); state.setText("Працює"); });
+
+        // Завдання 2.5. Незалежний вибір пріоритету від 1 до 10.
+        JComboBox<Integer> priority = new JComboBox<>(new Integer[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        priority.setSelectedItem(Thread.NORM_PRIORITY);
+        priority.addActionListener(event -> ai.setPriority((Integer) priority.getSelectedItem()));
+
+        panel.add(new JLabel(title));
+        panel.add(pause);
+        panel.add(resume);
+        panel.add(new JLabel("Пріоритет:"));
+        panel.add(priority);
+        panel.add(state);
+        return panel;
+    }
 }
 
-// Завдання 2. Ієрархія організацій із лабораторної № 3.
+// Ієрархія організацій із лабораторної № 3.
 class Organization {
     private final String name;
     private final String address;
